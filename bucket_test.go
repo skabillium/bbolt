@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,6 +33,44 @@ func TestBucket_Get_NonExistent(t *testing.T) {
 		}
 		if v := b.Get([]byte("foo")); v != nil {
 			t.Fatal("expected nil value")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Test that the bucket correctly performs a prefix scan
+func TestBucket_GetPrefix(t *testing.T) {
+	db := btesting.MustCreateDB(t)
+
+	data := [][2][]byte{
+		{[]byte("widget:1"), []byte("one")},
+		{[]byte("widget:2"), []byte("two")},
+		{[]byte("widget:3"), []byte("three")},
+		{[]byte("non_widget:1"), []byte("other")},
+	}
+
+	if err := db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucket([]byte("widgets"))
+		if err != nil {
+			return err
+		}
+		for _, row := range data {
+			err = b.Put(row[0], row[1])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.View(func(tx *bolt.Tx) error {
+		withPrefix := tx.Bucket([]byte("widgets")).GetPrefix([]byte("widget:"))
+		if !reflect.DeepEqual(withPrefix, data[:len(data)-1]) {
+			t.Fatal("Expected other prefixed values")
 		}
 		return nil
 	}); err != nil {

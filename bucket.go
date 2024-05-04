@@ -445,6 +445,16 @@ func (b *Bucket) Get(key []byte) []byte {
 	return v
 }
 
+// Get all keys that match a prefix, including their respective values
+func (b *Bucket) GetPrefix(prefix []byte) [][2][]byte {
+	var res [][2][]byte
+	cursor := b.Cursor()
+	for k, v := cursor.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = cursor.Next() {
+		res = append(res, [2][]byte{k, v})
+	}
+	return res
+}
+
 // Put sets the value for a key in the bucket.
 // If the key exist then its previous value will be overwritten.
 // Supplied value must remain valid for the life of the transaction.
